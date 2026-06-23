@@ -1,0 +1,13 @@
+# Lokální nástroje / editor / preview – nepatří do repozitáře
+.claude/
+.vscode/
+.DS_Store
+Thumbs.db
+node_modules/
+
+# Lokální deliverable, ne součást webu
+founder-dashboard.xlsx
+*.xlsx
+
+# Interní poznámky – jen lokálně, ne do veřejného repa
+INTERNAL.md
