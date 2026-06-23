@@ -1,32 +1,26 @@
 /* =========================================================================
-   PRÉMIOVÁ BYLINNÁ LANDING PAGE – logika
-   - Odeslání e-mailů do Google Sheets přes Google Apps Script Web App
-   - Google Analytics 4 (GA4) eventy přes bezpečný helper trackEvent()
-   - Validace, stavy tlačítka, ochrana proti duplicitě v rámci session
+   PRE-LAUNCH LANDING PAGE – logika
+   - Sběr e-mailů do Google Sheets přes Google Apps Script Web App
+   - GA4 eventy přes bezpečný helper trackEvent() (žádný název produktu)
+   - Validace, honeypot, stavy tlačítka, FAQ akordeon, sticky mobilní CTA
    ========================================================================= */
 
 (function () {
   "use strict";
 
   /* =======================================================================
-     KONFIGURACE – ZDE SE MĚNÍ DŮLEŽITÉ HODNOTY
-     =======================================================================
-
-     1) GOOGLE APPS SCRIPT ENDPOINT
-        Vložte URL své nasazené Web App (viz README, sekce Google Apps Script).
-        Dokud zůstane placeholder, formulář se NEodešle na server, ale
-        uživateli se zobrazí potvrzení a event se změří (tzv. „dry run“).
-
-     2) GA4 Measurement ID se nastavuje v index.html (window.GA4_MEASUREMENT_ID).
-
-     3) KONTAKTNÍ E-MAIL a TEXTY se mění v index.html.
-  */
+     KONFIGURACE
+     - GOOGLE_SCRIPT_URL: endpoint pro ukládání e-mailů (Apps Script /exec).
+       Při placeholderu „PASTE_YOUR…“ se data neodešlou (UI funguje, ale
+       reálné ukládání chybí – nutno doplnit endpoint).
+     - GA4 Measurement ID se nastavuje v index.html.
+     ======================================================================= */
   const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw5J1qB9kW6IKhpc6ECNJaXV18dNG58qd7ME0_P66hr3_377WTEBoqQgvoATmoeA--k2A/exec";
 
   // Texty hlášek (snadno editovatelné na jednom místě).
   const MESSAGES = {
     invalid: "Zadejte prosím platný e-mail.",
-    success: "Děkujeme. Jste na seznamu zájemců.",
+    success: "Jste na seznamu. Jakmile bude první série připravená, pošleme vám diskrétní zprávu před veřejným spuštěním.",
     error: "Něco se nepovedlo. Zkuste to prosím znovu.",
     duplicate: "Tento e-mail už máme. Děkujeme!",
     sending: "Odesílám…",
@@ -34,30 +28,16 @@
 
   /* =======================================================================
      GA4 – bezpečný helper
-     =======================================================================
-     trackEvent() zavolá gtag() pouze pokud existuje (tj. GA4 je načteno
-     s reálným Measurement ID). Pokud GA4 není k dispozici, funkce tiše
-     skončí a nic se nerozbije.
-
-     JAK NAJÍT EVENTY V GA4:
-       - Realtime: GA4 → Reports → Realtime → "Event count by Event name"
-       - DebugView: GA4 → Admin → DebugView (vyžaduje debug režim)
-       - Standardní reporty: Reports → Engagement → Events (s ~24h zpožděním)
-       - Konverze: Admin → Events → označit "lead_form_submit_success"
-         jako konverzi (mark as key event / conversion).
-  */
+     trackEvent() zavolá gtag() jen pokud existuje (reálné Measurement ID).
+     Jak najít eventy: GA4 → Reports → Realtime → Event count by Event name.
+     ======================================================================= */
   function trackEvent(eventName, params) {
     try {
       if (typeof window.gtag === "function" && !isGaPlaceholder()) {
         window.gtag("event", eventName, params || {});
       }
-      // Tichý debug do konzole (nepovinné, neovlivní produkci).
-      // console.debug("[trackEvent]", eventName, params);
-    } catch (e) {
-      /* GA nikdy nesmí shodit stránku */
-    }
+    } catch (e) { /* analytika nikdy nesmí shodit stránku */ }
   }
-
   function isGaPlaceholder() {
     var id = window.GA4_MEASUREMENT_ID;
     return !id || id.indexOf("XXXXXXXXXX") !== -1;
@@ -65,14 +45,10 @@
 
   /* =======================================================================
      UTM + kontextové parametry
-     =======================================================================
-     Načteme UTM z URL jednou a sdílíme je napříč eventy i odesláním.
-  */
+     ======================================================================= */
   function getQueryParam(name) {
-    var params = new URLSearchParams(window.location.search);
-    return params.get(name) || "";
+    return new URLSearchParams(window.location.search).get(name) || "";
   }
-
   var UTM = {
     utm_source: getQueryParam("utm_source"),
     utm_medium: getQueryParam("utm_medium"),
@@ -80,8 +56,6 @@
     utm_content: getQueryParam("utm_content"),
     utm_term: getQueryParam("utm_term"),
   };
-
-  // Společné parametry pro GA4 eventy.
   function baseEventParams(formLocation) {
     return {
       form_location: formLocation || "",
@@ -94,44 +68,31 @@
   }
 
   /* =======================================================================
-     Validace e-mailu (front-end)
+     Validace e-mailu
      ======================================================================= */
   function isValidEmail(email) {
     if (!email) return false;
-    // Jednoduchý, ale praktický vzor: něco@něco.tld
     var re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     return re.test(String(email).trim().toLowerCase());
   }
 
   /* =======================================================================
-     Ochrana proti opakovanému odeslání stejného e-mailu v session
+     Ochrana proti opakovanému odeslání v rámci session
      ======================================================================= */
   var SUBMITTED_KEY = "lead_submitted_emails";
-
   function getSubmittedEmails() {
-    try {
-      return JSON.parse(sessionStorage.getItem(SUBMITTED_KEY) || "[]");
-    } catch (e) {
-      return [];
-    }
+    try { return JSON.parse(sessionStorage.getItem(SUBMITTED_KEY) || "[]"); }
+    catch (e) { return []; }
   }
-
   function markEmailSubmitted(email) {
     try {
       var list = getSubmittedEmails();
-      var normalized = String(email).trim().toLowerCase();
-      if (list.indexOf(normalized) === -1) {
-        list.push(normalized);
-        sessionStorage.setItem(SUBMITTED_KEY, JSON.stringify(list));
-      }
-    } catch (e) {
-      /* sessionStorage nemusí být dostupné (např. privátní režim) */
-    }
+      var n = String(email).trim().toLowerCase();
+      if (list.indexOf(n) === -1) { list.push(n); sessionStorage.setItem(SUBMITTED_KEY, JSON.stringify(list)); }
+    } catch (e) { /* sessionStorage nedostupné */ }
   }
-
   function isAlreadySubmitted(email) {
-    var normalized = String(email).trim().toLowerCase();
-    return getSubmittedEmails().indexOf(normalized) !== -1;
+    return getSubmittedEmails().indexOf(String(email).trim().toLowerCase()) !== -1;
   }
 
   /* =======================================================================
@@ -147,12 +108,12 @@
   }
 
   /* =======================================================================
-     Sestavení payloadu pro Google Sheets
+     Payload pro Google Sheets
      ======================================================================= */
   function buildPayload(email, formLocation) {
     return {
       email: String(email).trim(),
-      source: formLocation,                     // "hero_form" / "footer_form"
+      source: formLocation,
       timestamp: new Date().toISOString(),
       page: window.location.href,
       userAgent: navigator.userAgent,
@@ -169,33 +130,21 @@
   }
 
   /* =======================================================================
-     Odeslání na Google Apps Script
-     =======================================================================
-     Použijeme text/plain content-type → Apps Script doGet/doPost přijme
-     tělo bez CORS preflightu (jednoduchý request). Apps Script si JSON
-     naparsuje z e.postData.contents.
-  */
+     Odeslání na Google Apps Script (text/plain = bez CORS preflightu)
+     ======================================================================= */
   function sendToSheets(payload) {
-    var isPlaceholder =
-      !GOOGLE_SCRIPT_URL ||
-      GOOGLE_SCRIPT_URL.indexOf("PASTE_YOUR") !== -1;
-
-    // Dry run: bez endpointu jen simulujeme úspěch (pro lokální vývoj).
+    var isPlaceholder = !GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.indexOf("PASTE_YOUR") !== -1;
     if (isPlaceholder) {
-      return Promise.resolve({ result: "success", dryRun: true });
+      // Backend není nastavený – nevytváříme falešný funkční stav.
+      return Promise.reject(new Error("missing_endpoint"));
     }
-
     return fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
-      // text/plain = "simple request" → žádný CORS preflight z GitHub Pages.
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
     }).then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json().catch(function () {
-        // Apps Script někdy vrací bez korektního JSON headeru – tolerujeme.
-        return { result: "success" };
-      });
+      return res.json().catch(function () { return { result: "success" }; });
     });
   }
 
@@ -204,186 +153,170 @@
      ======================================================================= */
   function handleSubmit(form, event) {
     event.preventDefault();
-
     var formLocation = form.getAttribute("data-form-location") || "unknown_form";
     var input = form.querySelector('input[type="email"]');
+    var honeypot = form.querySelector('input[name="website"]');
     var button = form.querySelector('button[type="submit"]');
     var email = input ? input.value : "";
 
-    // 1) GA4: pokus o odeslání
-    trackEvent("lead_form_submit_attempt", baseEventParams(formLocation));
+    // Honeypot: vyplněné pole = bot → tiše zahodit.
+    if (honeypot && honeypot.value.trim() !== "") return;
 
-    // 2) Validace
+    trackEvent("email_submit_attempt", baseEventParams(formLocation));
+
     if (!isValidEmail(email)) {
       setStatus(form, MESSAGES.invalid, "error");
-      trackEvent("lead_form_submit_error", Object.assign(
-        baseEventParams(formLocation), { error_reason: "invalid_email" }
-      ));
+      trackEvent("email_submit_error", Object.assign(baseEventParams(formLocation), { error_reason: "invalid_email" }));
       if (input) input.focus();
       return;
     }
 
-    // 3) Ochrana proti duplicitě v rámci session
     if (isAlreadySubmitted(email)) {
       setStatus(form, MESSAGES.duplicate, "success");
-      input.value = "";
+      if (input) input.value = "";
       return;
     }
 
-    // 4) Stav „odesílám“
-    var originalLabel = button ? button.textContent : "";
-    if (button) {
-      button.disabled = true;
-      button.textContent = MESSAGES.sending;
-    }
+    var originalLabel = button ? button.innerHTML : "";
+    if (button) { button.disabled = true; button.textContent = MESSAGES.sending; }
     setStatus(form, "", null);
 
-    var payload = buildPayload(email, formLocation);
-
-    sendToSheets(payload)
+    sendToSheets(buildPayload(email, formLocation))
       .then(function () {
-        // Úspěch
         markEmailSubmitted(email);
         setStatus(form, MESSAGES.success, "success");
         if (input) input.value = "";
-        trackEvent("lead_form_submit_success", baseEventParams(formLocation));
+        trackEvent("email_submit_success", baseEventParams(formLocation));
       })
-      .catch(function () {
-        // Chyba odeslání
+      .catch(function (err) {
         setStatus(form, MESSAGES.error, "error");
-        trackEvent("lead_form_submit_error", Object.assign(
-          baseEventParams(formLocation), { error_reason: "network" }
-        ));
+        var reason = (err && err.message === "missing_endpoint") ? "missing_endpoint" : "network";
+        trackEvent("email_submit_error", Object.assign(baseEventParams(formLocation), { error_reason: reason }));
       })
       .finally(function () {
-        if (button) {
-          button.disabled = false;
-          button.textContent = originalLabel;
-        }
+        if (button) { button.disabled = false; button.innerHTML = originalLabel; }
       });
   }
 
   /* =======================================================================
-     Inicializace po načtení DOM
+     Generické CTA eventy (data-ev), kromě FAQ (řeší se zvlášť).
+     ======================================================================= */
+  function setupCtaTracking() {
+    document.querySelectorAll("[data-ev]").forEach(function (el) {
+      if (el.classList.contains("faq-q")) return; // FAQ má vlastní logiku
+      el.addEventListener("click", function () {
+        var ev = el.getAttribute("data-ev");
+        var loc = el.getAttribute("data-analytics") || "";
+        trackEvent(ev, Object.assign(baseEventParams(loc), { cta_id: loc }));
+      });
+    });
+  }
+
+  /* =======================================================================
+     FAQ akordeon (přístupné: aria-expanded) + event faq_open při otevření.
+     ======================================================================= */
+  function setupFaq() {
+    document.querySelectorAll(".faq-q").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var item = btn.closest(".faq-item");
+        var willOpen = !item.classList.contains("open");
+        item.classList.toggle("open", willOpen);
+        btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        if (willOpen) {
+          trackEvent("faq_open", Object.assign(baseEventParams("faq"), {
+            question: (btn.textContent || "").trim().slice(0, 80)
+          }));
+        }
+      });
+    });
+  }
+
+  /* =======================================================================
+     Reveal animace (IntersectionObserver) se staggerem.
+     ======================================================================= */
+  function setupReveal() {
+    var els = document.querySelectorAll(".reveal");
+    if (!("IntersectionObserver" in window)) {
+      els.forEach(function (el) { el.classList.add("is-visible"); });
+      return;
+    }
+    document.querySelectorAll(".pillars").forEach(function (grid) {
+      grid.querySelectorAll(".reveal").forEach(function (el, i) { el.style.transitionDelay = (i * 80) + "ms"; });
+    });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("is-visible"); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
+    els.forEach(function (el) { io.observe(el); });
+  }
+
+  /* =======================================================================
+     hero_form_view – formulář v hero se objevil ve viewportu (jednou).
+     ======================================================================= */
+  function setupHeroFormView() {
+    if (!("IntersectionObserver" in window)) return;
+    var heroForm = document.querySelector('.lead-form[data-form-location="hero_form"]');
+    if (!heroForm) return;
+    var seen = false;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting && !seen) {
+          seen = true;
+          trackEvent("hero_form_view", baseEventParams("hero_form"));
+          io.disconnect();
+        }
+      });
+    }, { threshold: 0.4 });
+    io.observe(heroForm);
+  }
+
+  /* =======================================================================
+     Sticky mobilní CTA – zobrazí se, když není vidět žádný formulář.
+     ======================================================================= */
+  function setupStickyCta() {
+    var sticky = document.querySelector(".sticky-cta");
+    if (!sticky || !("IntersectionObserver" in window)) return;
+    var heroForm = document.querySelector('.lead-form[data-form-location="hero_form"]');
+    var finalSection = document.getElementById("zapis");
+    var heroVisible = true, finalVisible = false;
+
+    function update() {
+      var show = !heroVisible && !finalVisible;
+      sticky.classList.toggle("is-visible", show);
+      sticky.setAttribute("aria-hidden", show ? "false" : "true");
+      document.body.classList.toggle("has-sticky-cta", show);
+    }
+    if (heroForm) {
+      new IntersectionObserver(function (es) {
+        heroVisible = es[0].isIntersecting; update();
+      }, { threshold: 0.2 }).observe(heroForm);
+    }
+    if (finalSection) {
+      new IntersectionObserver(function (es) {
+        finalVisible = es[0].isIntersecting; update();
+      }, { threshold: 0.2 }).observe(finalSection);
+    }
+  }
+
+  /* =======================================================================
+     Inicializace
      ======================================================================= */
   function init() {
-    // Aktuální rok v patičce.
     var yearEl = document.getElementById("year");
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-    // Napojení obou formulářů na stejnou logiku.
-    var forms = document.querySelectorAll(".lead-form");
-    forms.forEach(function (form) {
-      form.addEventListener("submit", function (e) {
-        handleSubmit(form, e);
-      });
-    });
-
-    // CTA kliknutí (cta_click).
-    document.querySelectorAll(".cta-button").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var loc = btn.getAttribute("data-cta") || "";
-        trackEvent("cta_click", Object.assign(
-          baseEventParams(loc + "_form"), { cta_id: loc }
-        ));
-      });
-    });
-
-    // Nav kliknutí (nav_click).
-    document.querySelectorAll(".nav-link").forEach(function (link) {
-      link.addEventListener("click", function () {
-        trackEvent("nav_click", Object.assign(
-          baseEventParams(""), { nav_target: link.getAttribute("data-nav") || link.textContent }
-        ));
-      });
-    });
-
-    setupReveal();
-    setupViewportEvents();
-  }
-
-  /* =======================================================================
-     Reveal animace při scrollu (IntersectionObserver)
-     ======================================================================= */
-  function setupReveal() {
-    var revealEls = document.querySelectorAll(".reveal");
-    if (!("IntersectionObserver" in window)) {
-      revealEls.forEach(function (el) { el.classList.add("is-visible"); });
-      return;
-    }
-
-    // Decentní stagger: prvky ve stejné mřížce se odhalují postupně.
-    document.querySelectorAll(".card-grid, .audience-grid").forEach(function (grid) {
-      var items = grid.querySelectorAll(".reveal");
-      items.forEach(function (el, i) {
-        el.style.transitionDelay = (i * 80) + "ms";
-      });
-    });
-
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          io.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
-    revealEls.forEach(function (el) { io.observe(el); });
-  }
-
-  /* =======================================================================
-     GA4 viewport eventy (sekce a formuláře v zorném poli)
-     =======================================================================
-       - lead_form_view          – formulář se objevil ve viewportu
-       - ingredient_section_view – sekce složení
-       - audience_section_view   – sekce „pro koho“
-     Každý event se odešle jen jednou (once).
-  */
-  function setupViewportEvents() {
-    if (!("IntersectionObserver" in window)) return;
-
-    function observeOnce(selector, callback) {
-      var el = document.querySelector(selector);
-      if (!el) return;
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            callback(entry.target);
-            io.disconnect();
-          }
-        });
-      }, { threshold: 0.3 });
-      io.observe(el);
-    }
-
-    // lead_form_view – sledujeme oba formuláře zvlášť.
     document.querySelectorAll(".lead-form").forEach(function (form) {
-      var loc = form.getAttribute("data-form-location") || "";
-      var seen = false;
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting && !seen) {
-            seen = true;
-            trackEvent("lead_form_view", baseEventParams(loc));
-            io.disconnect();
-          }
-        });
-      }, { threshold: 0.4 });
-      io.observe(form);
+      form.addEventListener("submit", function (e) { handleSubmit(form, e); });
     });
 
-    // ingredient_section_view
-    observeOnce("#slozeni", function () {
-      trackEvent("ingredient_section_view", baseEventParams("ingredients"));
-    });
-
-    // audience_section_view
-    observeOnce("#pro-koho", function () {
-      trackEvent("audience_section_view", baseEventParams("audience"));
-    });
+    setupCtaTracking();
+    setupFaq();
+    setupReveal();
+    setupHeroFormView();
+    setupStickyCta();
   }
 
-  // Spuštění.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
