@@ -155,7 +155,7 @@
                 placeholder="vas@email.cz"
                 autocomplete="email"
                 inputmode="email"
-                aria-describedby="hero-status hero-legal"
+                aria-describedby="hero-status"
                 required
               />
               <button type="submit" class="cta-button" data-analytics="hero-email-submit" data-ev="cta_hero_click">
@@ -180,14 +180,23 @@
               <li>Limitovaná první série</li>
             </ul>
 
-            <p class="form-consent">
-              Odesláním e-mailu souhlasíte se zasláním informací o uvedení připravovaného
-              produktu, dostupnosti první série a souvisejících obchodních sdělení. Souhlas
-              můžete kdykoliv odvolat. <a href="#zasady">Zásady ochrany osobních údajů</a>.
-            </p>
-            <p class="form-legal" id="hero-legal">
-              Připravovaný doplněk stravy. Nejedná se o léčivý přípravek. Určeno pro dospělé.
-            </p>
+            <!-- Souhlas + právní text schované pod „i" (méně busy hero). -->
+            <details class="form-details">
+              <summary>
+                <span class="summary-i" aria-hidden="true">i</span>
+                Souhlas a podmínky
+              </summary>
+              <div class="details-body">
+                <p class="form-consent">
+                  Odesláním e-mailu souhlasíte se zasláním informací o uvedení připravovaného
+                  produktu, dostupnosti první série a souvisejících obchodních sdělení. Souhlas
+                  můžete kdykoliv odvolat. <a href="#zasady">Zásady ochrany osobních údajů</a>.
+                </p>
+                <p class="form-legal" id="hero-legal">
+                  Připravovaný doplněk stravy. Nejedná se o léčivý přípravek. Určeno pro dospělé.
+                </p>
+              </div>
+            </details>
           </form>
         </div>
 
@@ -389,7 +398,7 @@
                 placeholder="vas@email.cz"
                 autocomplete="email"
                 inputmode="email"
-                aria-describedby="final-status final-legal"
+                aria-describedby="final-status"
                 required
               />
               <button type="submit" class="cta-button" data-analytics="cta-final" data-ev="cta_final_click">
@@ -405,14 +414,22 @@
 
             <p class="form-status" id="final-status" role="status" aria-live="polite"></p>
             <p class="form-micro">Diskrétní informace ke spuštění. Bez spamu. Odhlášení kdykoliv.</p>
-            <p class="form-consent">
-              Odesláním e-mailu souhlasíte se zasláním informací o uvedení připravovaného
-              produktu, dostupnosti první série a souvisejících obchodních sdělení. Souhlas
-              můžete kdykoliv odvolat. <a href="#zasady">Zásady ochrany osobních údajů</a>.
-            </p>
-            <p class="form-legal" id="final-legal">
-              Připravovaný doplněk stravy. Nejedná se o léčivý přípravek. Určeno pro dospělé.
-            </p>
+            <details class="form-details">
+              <summary>
+                <span class="summary-i" aria-hidden="true">i</span>
+                Souhlas a podmínky
+              </summary>
+              <div class="details-body">
+                <p class="form-consent">
+                  Odesláním e-mailu souhlasíte se zasláním informací o uvedení připravovaného
+                  produktu, dostupnosti první série a souvisejících obchodních sdělení. Souhlas
+                  můžete kdykoliv odvolat. <a href="#zasady">Zásady ochrany osobních údajů</a>.
+                </p>
+                <p class="form-legal" id="final-legal">
+                  Připravovaný doplněk stravy. Nejedná se o léčivý přípravek. Určeno pro dospělé.
+                </p>
+              </div>
+            </details>
           </form>
         </div>
       </div>

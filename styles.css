@@ -977,6 +977,40 @@ h1, h2, h3 {
   color: var(--text-3);
 }
 
+/* „i" rozbalovátko – schová souhlas a právní text, ať hero není busy. */
+.form-details { margin-top: 14px; }
+.form-details > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+  transition: color var(--dur-fast) var(--ease);
+}
+.form-details > summary::-webkit-details-marker { display: none; }
+.form-details > summary:hover { color: var(--text-2); }
+.form-details[open] > summary { color: var(--text-2); margin-bottom: 4px; }
+.summary-i {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--border-gold);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--gold-300);
+}
+.details-body .form-consent,
+.details-body .form-legal { margin-top: 8px; }
+.cta-card .form-details { text-align: left; }
+
 /* Centrované CTA řádky v sekcích. */
 .section-cta-row {
   display: flex;
